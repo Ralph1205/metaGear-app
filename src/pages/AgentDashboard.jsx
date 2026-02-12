@@ -8,7 +8,25 @@ export default function AgentDashboard({ session, activeTab, setActiveTab }) {
   const [isProcessing, setIsProcessing] = useState(null);
   const [time, setTime] = useState(new Date());
 
-  // Live Clock for the Intel Panel
+  // NEW: Granular State for Address
+  const [isEditing, setIsEditing] = useState(false);
+  const [newName, setNewName] = useState(
+    session?.user?.user_metadata?.full_name || "",
+  );
+  const [street, setStreet] = useState(
+    session?.user?.user_metadata?.street || "",
+  );
+  const [city, setCity] = useState(session?.user?.user_metadata?.city || "");
+  const [province, setProvince] = useState(
+    session?.user?.user_metadata?.province || "",
+  );
+  const [isSaving, setIsSaving] = useState(false);
+
+  const agentName =
+    session?.user?.user_metadata?.full_name ||
+    session?.user?.email?.split("@")[0] ||
+    "Unknown_Agent";
+
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
@@ -29,18 +47,29 @@ export default function AgentDashboard({ session, activeTab, setActiveTab }) {
     if (session) fetchUserOrders();
   }, [session]);
 
-  const handlePurgeOrder = async (orderId) => {
-    const confirmPurge = window.confirm("CRITICAL: PURGE MANIFEST?");
-    if (!confirmPurge) return;
-    setIsProcessing(orderId);
-    const { error } = await supabase.from("orders").delete().eq("id", orderId);
-    if (!error) setOrders((prev) => prev.filter((o) => o.id !== orderId));
-    setIsProcessing(null);
+  const handleUpdateProfile = async () => {
+    setIsSaving(true);
+    const { error } = await supabase.auth.updateUser({
+      data: {
+        full_name: newName,
+        street,
+        city,
+        province,
+      },
+    });
+
+    if (error) {
+      alert("SYNC_ERROR: " + error.message);
+    } else {
+      setIsEditing(false);
+      window.location.reload();
+    }
+    setIsSaving(false);
   };
 
   return (
     <div className="min-h-screen bg-[#050505] text-white flex flex-col md:flex-row pt-20 font-sans overflow-hidden">
-      {/* 01. LEFT SIDEBAR (NAV) */}
+      {/* 01. LEFT SIDEBAR */}
       <aside className="w-full md:w-60 border-r border-neutral-900 bg-black/50 p-6 flex flex-col gap-8 shrink-0">
         <div className="space-y-1">
           <p className="text-red-600 font-mono text-[8px] uppercase tracking-[0.4em] animate-pulse">
@@ -48,7 +77,10 @@ export default function AgentDashboard({ session, activeTab, setActiveTab }) {
           </p>
           <h2 className="text-2xl font-[1000] italic tracking-tighter uppercase leading-tight">
             Welcome, <br />
-            <span className="text-red-600">Soldier</span>
+            <span className="text-red-600">
+              {session?.user?.user_metadata?.full_name?.split(" ")[0] ||
+                "Soldier"}
+            </span>
           </h2>
           <p className="text-neutral-600 font-mono text-[8px] truncate opacity-60">
             {session?.user?.email}
@@ -72,7 +104,7 @@ export default function AgentDashboard({ session, activeTab, setActiveTab }) {
         </nav>
       </aside>
 
-      {/* 02. CENTER CONTENT (MANIFESTS) */}
+      {/* 02. CENTER CONTENT */}
       <main className="flex-1 p-6 md:p-10 overflow-y-auto custom-scrollbar">
         <AnimatePresence mode="popLayout">
           {activeTab === "manifests" ? (
@@ -93,25 +125,66 @@ export default function AgentDashboard({ session, activeTab, setActiveTab }) {
                   {orders.map((order) => (
                     <div
                       key={order.id}
-                      className="bg-neutral-900/20 border border-neutral-800 p-6 hover:border-red-600/30 transition-all"
+                      className="bg-neutral-900/20 border border-neutral-800 p-6 hover:border-red-600/30 transition-all relative overflow-hidden group"
                     >
-                      {/* ... existing order card content ... */}
-                      <div className="flex justify-between items-center mb-4 border-b border-neutral-800/50 pb-4">
-                        <p className="text-sm font-black italic">
-                          {new Date(order.created_at).toLocaleDateString()}
-                        </p>
-                        <p className="text-2xl font-[1000] italic text-white">
-                          ₱{order.total_price?.toLocaleString()}
-                        </p>
+                      <div className="absolute top-0 left-0 w-1 h-full bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                      {/* Tactical Header */}
+                      <div className="flex flex-col md:flex-row justify-between gap-4 mb-4 border-b border-neutral-800/50 pb-4">
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-mono text-red-600 uppercase tracking-widest">
+                            {/* FIXED ERROR HERE */}
+                            Manifest_ID: {order.id.toString().slice(0, 8)}
+                          </p>
+                          <p className="text-sm font-black italic">
+                            {new Date(order.created_at).toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[8px] font-mono text-neutral-500 uppercase">
+                            Total_Expenditure
+                          </p>
+                          <p className="text-2xl font-[1000] italic text-white">
+                            ₱{order.total_price?.toLocaleString()}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex gap-4">
-                        {order.order_items?.map((item, idx) => (
-                          <img
-                            key={idx}
-                            src={item.products?.image_url}
-                            className="w-12 h-12 object-cover grayscale border border-neutral-800"
-                          />
-                        ))}
+
+                      {/* Order Intel Details */}
+                      <div className="flex flex-wrap gap-4 items-center justify-between">
+                        <div className="flex gap-3">
+                          {order.order_items?.map((item, idx) => (
+                            <div key={idx} className="relative group/item">
+                              <img
+                                src={item.products?.image_url}
+                                className="w-14 h-14 object-cover grayscale hover:grayscale-0 border border-neutral-800 transition-all"
+                                alt="asset"
+                              />
+                              <span className="absolute -top-2 -right-2 bg-red-600 text-[9px] px-1.5 py-0.5 font-bold shadow-lg">
+                                x{item.quantity}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-6 text-right">
+                          <div>
+                            <p className="text-[8px] font-mono text-neutral-500 uppercase">
+                              Payload_Count
+                            </p>
+                            <p className="text-xs font-bold font-mono">
+                              {order.order_items?.length || 0} Assets
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[8px] font-mono text-neutral-500 uppercase">
+                              Logistics_Status
+                            </p>
+                            <span className="text-[10px] font-black uppercase text-green-500">
+                              In_Transit
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -120,110 +193,122 @@ export default function AgentDashboard({ session, activeTab, setActiveTab }) {
             </motion.section>
           ) : (
             <section className="max-w-2xl mx-auto">
-              {/* ... Personnel File Content ... */}
               <h3 className="text-3xl font-[1000] italic uppercase tracking-tighter border-b border-red-600 pb-2 mb-8">
                 Personnel_File
               </h3>
-              <div className="bg-neutral-900/40 border border-neutral-800 p-6">
-                <p className="text-[10px] text-red-600 font-bold uppercase mb-4">
-                  Current_Assigned_Identity
-                </p>
-                <p className="text-2xl font-black uppercase text-white tracking-tighter italic">
-                  FLORES RALPH
-                </p>
+              <div className="bg-neutral-900/40 border border-neutral-800 p-8">
+                <div className="flex justify-between items-start mb-8">
+                  <div className="w-full space-y-6">
+                    {/* Codename Section */}
+                    <div>
+                      <p className="text-[10px] text-red-600 font-bold uppercase mb-2">
+                        Assigned_Codename
+                      </p>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={newName}
+                          onChange={(e) => setNewName(e.target.value)}
+                          className="w-full bg-black border border-red-600 text-white p-2 text-xl font-black uppercase italic outline-none focus:shadow-[0_0_10px_rgba(220,38,38,0.2)]"
+                        />
+                      ) : (
+                        <p className="text-3xl font-black uppercase text-white tracking-tighter italic">
+                          {agentName}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Bit-by-bit Address Section */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-[8px] text-neutral-500 uppercase font-mono mb-1">
+                          Street_Sector
+                        </p>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={street}
+                            onChange={(e) => setStreet(e.target.value)}
+                            className="w-full bg-black border border-neutral-700 text-white p-1 text-xs font-mono uppercase outline-none focus:border-red-600"
+                          />
+                        ) : (
+                          <p className="text-[10px] font-mono uppercase text-neutral-300 border-b border-neutral-800 pb-1">
+                            {street || "---"}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-[8px] text-neutral-500 uppercase font-mono mb-1">
+                          City_Zone
+                        </p>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={city}
+                            onChange={(e) => setCity(e.target.value)}
+                            className="w-full bg-black border border-neutral-700 text-white p-1 text-xs font-mono uppercase outline-none focus:border-red-600"
+                          />
+                        ) : (
+                          <p className="text-[10px] font-mono uppercase text-neutral-300 border-b border-neutral-800 pb-1">
+                            {city || "---"}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-[8px] text-neutral-500 uppercase font-mono mb-1">
+                          Province_Region
+                        </p>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={province}
+                            onChange={(e) => setProvince(e.target.value)}
+                            className="w-full bg-black border border-neutral-700 text-white p-1 text-xs font-mono uppercase outline-none focus:border-red-600"
+                          />
+                        ) : (
+                          <p className="text-[10px] font-mono uppercase text-neutral-300 border-b border-neutral-800 pb-1">
+                            {province || "---"}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() =>
+                      isEditing ? handleUpdateProfile() : setIsEditing(true)
+                    }
+                    disabled={isSaving}
+                    className="shrink-0 text-[10px] border border-neutral-700 px-3 py-1 hover:border-red-600 hover:text-red-600 transition-colors uppercase font-mono ml-4"
+                  >
+                    {isSaving
+                      ? "SYNCING..."
+                      : isEditing
+                        ? "[ SAVE_DATA ]"
+                        : "[ EDIT_FILE ]"}
+                  </button>
+                </div>
               </div>
             </section>
           )}
         </AnimatePresence>
       </main>
 
-      {/* 03. NEW RIGHT PANEL (SYSTEM INTEL) */}
+      {/* 03. RIGHT PANEL */}
       <aside className="hidden xl:flex w-72 border-l border-neutral-900 bg-black/30 p-6 flex-col gap-8 shrink-0">
         <div className="space-y-6">
-          {/* SYSTEM TIME */}
-          <div className="border border-neutral-800 p-4 bg-black/40 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-1 h-full bg-red-600/20" />
+          <div className="border border-neutral-800 p-4 bg-black/40 relative">
             <p className="text-[8px] font-mono text-neutral-500 uppercase tracking-widest mb-1">
               Local_Time_Sync
             </p>
             <p className="text-2xl font-mono font-bold text-white tracking-tighter">
               {time.toLocaleTimeString([], { hour12: false })}
             </p>
-            <p className="text-[8px] font-mono text-red-600/60 mt-1 uppercase">
-              Region: PH_Sector_01
+            <p className="text-[8px] font-mono text-red-600/60 mt-1 uppercase italic">
+              Total_Ops_Logged: {orders.length}
             </p>
           </div>
-
-          {/* STATUS LOGS */}
-          <div className="space-y-4">
-            <h4 className="text-[9px] font-mono text-neutral-600 uppercase tracking-[0.2em] flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-red-600 rounded-full animate-ping" />
-              Live_System_Logs
-            </h4>
-            <div className="space-y-3 font-mono text-[9px]">
-              {[
-                {
-                  label: "CORE",
-                  msg: "Encrypted link stable",
-                  color: "text-green-500",
-                },
-                {
-                  label: "DATABASE",
-                  msg: "Supabase connection active",
-                  color: "text-blue-500",
-                },
-                {
-                  label: "SECURITY",
-                  msg: "Firewall level 04 active",
-                  color: "text-red-500",
-                },
-                {
-                  label: "LOGISTICS",
-                  msg: "Manifest sync 100%",
-                  color: "text-neutral-500",
-                },
-              ].map((log, i) => (
-                <div
-                  key={i}
-                  className="flex gap-3 border-l border-neutral-800 pl-3 py-1"
-                >
-                  <span className={`font-bold ${log.color}`}>
-                    [{log.label}]
-                  </span>
-                  <span className="text-neutral-500 italic">{log.msg}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* ALERT LEVEL VISUAL */}
-          <div className="pt-6 border-t border-neutral-900">
-            <p className="text-[9px] font-mono text-neutral-600 uppercase mb-3">
-              Threat_Level_Indicator
-            </p>
-            <div className="flex gap-1 h-6">
-              {[...Array(10)].map((_, i) => (
-                <div
-                  key={i}
-                  className={`flex-1 ${i < 4 ? "bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.5)]" : "bg-neutral-900"}`}
-                />
-              ))}
-            </div>
-            <div className="flex justify-between mt-2 text-[8px] font-mono text-neutral-500">
-              <span>MIN_THREAT</span>
-              <span className="text-red-600 font-bold">ALPHA_ALERT</span>
-            </div>
-          </div>
-        </div>
-
-        {/* LOGOUT AT THE BOTTOM */}
-        <div className="mt-auto">
-          <button
-            onClick={() => supabase.auth.signOut()}
-            className="w-full border border-neutral-800 py-3 text-[9px] font-black uppercase tracking-widest text-neutral-500 hover:text-white hover:border-red-600 transition-all"
-          >
-            Terminal_Sign_Out
-          </button>
+          {/* ... Live System Logs & Threat Level ... */}
         </div>
       </aside>
     </div>

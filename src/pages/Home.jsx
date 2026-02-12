@@ -13,8 +13,9 @@ export default function Home({
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("All");
+  // NEW: Price filter state
+  const [priceRange, setPriceRange] = useState(500000);
 
-  // SECTION REFS FOR NAVIGATION
   const categorySectionRef = useRef(null);
   const productGridRef = useRef(null);
 
@@ -22,7 +23,6 @@ export default function Home({
     categorySectionRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // AUTO-SCROLL TO RESULTS WHEN SEARCHING
   useEffect(() => {
     if (searchQuery.length > 0) {
       productGridRef.current?.scrollIntoView({
@@ -32,10 +32,9 @@ export default function Home({
     }
   }, [searchQuery]);
 
-  // Function to handle category selection and scroll
   const handleCategoryClick = (categoryName) => {
-    setSelectedCategory(
-      selectedCategory === categoryName ? "All" : categoryName,
+    setSelectedCategory((prev) =>
+      prev === categoryName ? "All" : categoryName,
     );
 
     setTimeout(() => {
@@ -46,12 +45,10 @@ export default function Home({
     }, 100);
   };
 
-  // 1. SCROLL LOGIC
   const containerRef = useRef(null);
   const { scrollXProgress } = useScroll({ container: containerRef });
   const scrollPercent = useTransform(scrollXProgress, [0, 1], ["0%", "100%"]);
 
-  // 2. DRAG-TO-SCROLL LOGIC
   const isDragging = useRef(false);
   const startX = useRef(0);
   const scrollLeft = useRef(0);
@@ -121,15 +118,24 @@ export default function Home({
     fetchProducts();
   }, []);
 
+  // UPDATED FILTER LOGIC: Includes Price Check
   const filteredProducts = products.filter((p) => {
     const matchesSearch = p.name
       ?.toLowerCase()
       .includes(searchQuery.toLowerCase());
-    const matchesCategory =
-      selectedCategory === "All" ||
-      p.category?.toLowerCase().replace(/\s/g, "") ===
-        selectedCategory.toLowerCase().replace(/\s/g, "");
-    return matchesSearch && matchesCategory;
+    const matchesPrice = (p.price || 0) <= priceRange;
+
+    let matchesCategory = true;
+    if (selectedCategory !== "All") {
+      const dbCategory = p.category?.toLowerCase().trim() || "";
+      const activeCategory = selectedCategory.toLowerCase().trim();
+      matchesCategory =
+        dbCategory === activeCategory ||
+        dbCategory === activeCategory.replace(/s$/, "") ||
+        activeCategory === dbCategory.replace(/s$/, "");
+    }
+
+    return matchesSearch && matchesCategory && matchesPrice;
   });
 
   return (
@@ -151,6 +157,20 @@ export default function Home({
             animation: glitch-anim 0.2s infinite;
             display: flex; align-items: center; justify-content: center;
             font-size: 10px; font-weight: 900; color: #dc2626; z-index: 20;
+          }
+          input[type='range'] {
+            -webkit-appearance: none;
+            background: #1a1a1a;
+            height: 4px;
+          }
+          input[type='range']::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 14px;
+            width: 14px;
+            background: #dc2626;
+            cursor: pointer;
+            border-radius: 0;
+            box-shadow: 0 0 10px #dc2626;
           }
         `}
       </style>
@@ -189,7 +209,6 @@ export default function Home({
                     GEAR<span className="text-red-600">_</span>DEPT
                   </h2>
                 </motion.div>
-
                 <div className="hidden md:block text-right">
                   <div className="bg-red-600/10 border border-red-600/30 px-4 py-2 flex items-center gap-4">
                     <span className="text-[9px] font-mono text-neutral-500 uppercase">
@@ -216,7 +235,7 @@ export default function Home({
                       key={i}
                       whileHover={{ scale: 1.02, y: -5 }}
                       onClick={() => handleCategoryClick(cat.name)}
-                      className="relative shrink-0 w-80 snap-center glitch-hover"
+                      className="relative shrink-0 w-80 snap-center glitch-hover cursor-pointer"
                     >
                       <div
                         className={`relative p-8 transition-all duration-300 border-2 ${
@@ -236,7 +255,7 @@ export default function Home({
                             draggable="false"
                             className={`max-h-full object-contain z-10 filter transition-all duration-700 ${
                               selectedCategory === cat.name
-                                ? "scale-110 rotate-2"
+                                ? "scale-110 rotate-2 grayscale-0 opacity-100"
                                 : "grayscale opacity-40 group-hover:grayscale-0 group-hover:opacity-100"
                             }`}
                           />
@@ -247,13 +266,14 @@ export default function Home({
                           >
                             {cat.name}
                           </span>
-                          <div className="w-2 h-2 bg-red-600 animate-pulse rounded-full" />
+                          <div
+                            className={`w-2 h-2 rounded-full ${selectedCategory === cat.name ? "bg-red-600 animate-pulse" : "bg-neutral-800"}`}
+                          />
                         </div>
                       </div>
                     </motion.div>
                   ))}
                 </div>
-
                 <div className="absolute -bottom-4 left-0 w-full h-[2px] bg-neutral-900 overflow-hidden">
                   <motion.div
                     className="absolute h-full bg-red-600 shadow-[0_0_15px_#dc2626]"
@@ -270,19 +290,46 @@ export default function Home({
           className="max-w-[1400px] mx-auto px-6 py-24 relative"
         >
           {!loading && (
-            <div className="flex flex-col mb-12">
-              <div className="flex items-center gap-4">
-                <h3 className="text-3xl font-[1000] uppercase italic tracking-tighter">
-                  TARGET<span className="text-red-600">:</span>{" "}
-                  {searchQuery
-                    ? `SEARCHING "${searchQuery}"`
-                    : selectedCategory}
-                </h3>
-                <div className="h-[2px] flex-grow bg-gradient-to-r from-red-600 to-transparent opacity-20" />
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12">
+              <div className="flex flex-col">
+                <div className="flex items-center gap-4">
+                  <h3 className="text-3xl font-[1000] uppercase italic tracking-tighter">
+                    TARGET<span className="text-red-600">:</span>{" "}
+                    {searchQuery
+                      ? `SEARCHING "${searchQuery}"`
+                      : selectedCategory}
+                  </h3>
+                  <div className="hidden lg:block h-[2px] w-40 bg-gradient-to-r from-red-600 to-transparent opacity-20" />
+                </div>
+                <span className="text-[10px] font-mono text-neutral-600 mt-2">
+                  DEPLOYING_ASSETS_FROM_DATABASE_STREAMS...
+                </span>
               </div>
-              <span className="text-[10px] font-mono text-neutral-600 mt-2">
-                DEPLOYING_ASSETS_FROM_DATABASE_STREAMS...
-              </span>
+
+              {/* NEW: Price Range UI Component */}
+              <div className="bg-neutral-900/30 border border-neutral-800 p-4 min-w-[300px]">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-neutral-500">
+                    CREDIT_CEILING
+                  </span>
+                  <span className="text-sm font-mono font-bold text-red-600 italic">
+                    ₱{priceRange.toLocaleString()}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="500000"
+                  step="5000"
+                  value={priceRange}
+                  onChange={(e) => setPriceRange(Number(e.target.value))}
+                  className="w-full cursor-pointer accent-red-600"
+                />
+                <div className="flex justify-between mt-2 text-[7px] font-mono text-neutral-700 uppercase">
+                  <span>Min_Allowance</span>
+                  <span>Max_Clearance</span>
+                </div>
+              </div>
             </div>
           )}
 
