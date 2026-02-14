@@ -1,11 +1,18 @@
 import { useState, useEffect, useRef } from "react";
-import { motion, useScroll, useSpring, useTransform } from "framer-motion";
+import {
+  motion,
+  useScroll,
+  useSpring,
+  useTransform,
+  AnimatePresence,
+} from "framer-motion";
 import supabase from "../supabase";
 import Hero from "../sections/Hero";
 import ProductGrid from "../sections/ProductGrid";
 
 export default function Home({
   addToCart,
+  addToWishlist, // <--- ADDED THIS PROP
   onViewDetails,
   searchQuery,
   setPage,
@@ -13,8 +20,11 @@ export default function Home({
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("All");
-  // NEW: Price filter state
   const [priceRange, setPriceRange] = useState(500000);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 8;
 
   const categorySectionRef = useRef(null);
   const productGridRef = useRef(null);
@@ -29,8 +39,13 @@ export default function Home({
         behavior: "smooth",
         block: "start",
       });
+      setCurrentPage(1);
     }
   }, [searchQuery]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, priceRange]);
 
   const handleCategoryClick = (categoryName) => {
     setSelectedCategory((prev) =>
@@ -118,7 +133,6 @@ export default function Home({
     fetchProducts();
   }, []);
 
-  // UPDATED FILTER LOGIC: Includes Price Check
   const filteredProducts = products.filter((p) => {
     const matchesSearch = p.name
       ?.toLowerCase()
@@ -137,6 +151,14 @@ export default function Home({
 
     return matchesSearch && matchesCategory && matchesPrice;
   });
+
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedProducts = filteredProducts.slice(
+    startIndex,
+    startIndex + ITEMS_PER_PAGE,
+  );
 
   return (
     <main className="bg-[#020202] min-h-screen text-white overflow-hidden relative">
@@ -172,9 +194,34 @@ export default function Home({
             border-radius: 0;
             box-shadow: 0 0 10px #dc2626;
           }
+          .join-item.btn {
+            background: #0a0a0a;
+            border: 1px solid #262626;
+            color: #737373;
+            font-weight: 900;
+            font-size: 10px;
+            height: 40px;
+            width: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+          }
+          .join-item.btn:hover:not(.btn-disabled) {
+            border-color: #dc2626;
+            color: white;
+            background: #121212;
+          }
+          .join-item.btn-active {
+            background: #dc2626 !important;
+            border-color: #dc2626 !important;
+            color: white !important;
+            box-shadow: 0 0 15px rgba(220, 38, 38, 0.4);
+          }
         `}
       </style>
 
+      {/* HUD Overlays */}
       <div className="fixed inset-0 pointer-events-none opacity-30 z-0">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(220,38,38,0.05)_0%,transparent_70%)]" />
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/3px-tile.png')] opacity-20" />
@@ -193,6 +240,7 @@ export default function Home({
             ref={categorySectionRef}
             className="py-24 px-6 relative border-y border-red-600/20 overflow-hidden bg-black/60 backdrop-blur-md"
           >
+            {/* Category Section Content */}
             <div className="max-w-7xl mx-auto relative">
               <header className="mb-12 flex justify-between items-end">
                 <motion.div
@@ -285,6 +333,7 @@ export default function Home({
           </section>
         )}
 
+        {/* Product Grid Section */}
         <div
           ref={productGridRef}
           className="max-w-[1400px] mx-auto px-6 py-24 relative"
@@ -306,7 +355,6 @@ export default function Home({
                 </span>
               </div>
 
-              {/* NEW: Price Range UI Component */}
               <div className="bg-neutral-900/30 border border-neutral-800 p-4 min-w-[300px]">
                 <div className="flex justify-between items-center mb-3">
                   <span className="text-[9px] font-black uppercase tracking-widest text-neutral-500">
@@ -348,11 +396,97 @@ export default function Home({
               </span>
             </div>
           ) : (
-            <ProductGrid
-              products={filteredProducts}
-              addToCart={addToCart}
-              onViewDetails={onViewDetails}
-            />
+            <>
+              {/* --- CRITICAL FIX: PASSING ADDTOWISHLIST HERE --- */}
+              <ProductGrid
+                products={paginatedProducts}
+                addToCart={addToCart}
+                addToWishlist={addToWishlist}
+                onViewDetails={onViewDetails}
+              />
+
+              {/* Pagination UI */}
+              {totalPages > 1 && (
+                <div className="mt-20 flex flex-col items-center gap-6">
+                  <div className="join">
+                    <button
+                      onClick={() => {
+                        setCurrentPage((prev) => Math.max(1, prev - 1));
+                        productGridRef.current?.scrollIntoView({
+                          behavior: "smooth",
+                        });
+                      }}
+                      disabled={currentPage === 1}
+                      className="join-item btn"
+                    >
+                      «
+                    </button>
+
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                      (page) => {
+                        if (
+                          page === 1 ||
+                          page === totalPages ||
+                          (page >= currentPage - 1 && page <= currentPage + 1)
+                        ) {
+                          return (
+                            <button
+                              key={page}
+                              onClick={() => {
+                                setCurrentPage(page);
+                                productGridRef.current?.scrollIntoView({
+                                  behavior: "smooth",
+                                });
+                              }}
+                              className={`join-item btn ${currentPage === page ? "btn-active" : ""}`}
+                            >
+                              {page}
+                            </button>
+                          );
+                        }
+                        if (
+                          page === currentPage - 2 ||
+                          page === currentPage + 2
+                        ) {
+                          return (
+                            <button
+                              key={page}
+                              className="join-item btn btn-disabled"
+                            >
+                              ...
+                            </button>
+                          );
+                        }
+                        return null;
+                      },
+                    )}
+
+                    <button
+                      onClick={() => {
+                        setCurrentPage((prev) =>
+                          Math.min(totalPages, prev + 1),
+                        );
+                        productGridRef.current?.scrollIntoView({
+                          behavior: "smooth",
+                        });
+                      }}
+                      disabled={currentPage === totalPages}
+                      className="join-item btn"
+                    >
+                      »
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-4 opacity-50">
+                    <span className="h-[1px] w-12 bg-neutral-800" />
+                    <span className="text-[8px] font-mono tracking-[0.3em] uppercase">
+                      Page_{currentPage}_of_{totalPages}
+                    </span>
+                    <span className="h-[1px] w-12 bg-neutral-800" />
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

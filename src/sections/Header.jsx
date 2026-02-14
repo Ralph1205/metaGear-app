@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import supabase from "../supabase";
 
@@ -13,8 +13,31 @@ export default function Header({
 }) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState(null);
 
   const isAdmin = session?.user?.email === "admin@metagear.com";
+
+  // Fetch the private Signed URL for the header avatar
+  useEffect(() => {
+    async function getHeaderAvatar() {
+      const storedPath = session?.user?.user_metadata?.avatar_path;
+      const googlePic =
+        session?.user?.user_metadata?.picture ||
+        session?.user?.user_metadata?.avatar_url;
+
+      if (storedPath) {
+        const { data, error } = await supabase.storage
+          .from("profiles")
+          .createSignedUrl(storedPath, 3600); // 1 hour token
+
+        if (!error) setAvatarUrl(data.signedUrl);
+      } else if (googlePic) {
+        setAvatarUrl(googlePic);
+      }
+    }
+
+    if (session) getHeaderAvatar();
+  }, [session]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -33,14 +56,12 @@ export default function Header({
 
   return (
     <header className="sticky top-0 z-[100] bg-[#020202] text-white border-b-2 border-red-600/50 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
-      {/* GLITCH LINE TOP */}
       <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-red-600 to-transparent opacity-50"></div>
 
       <div className="max-w-[1440px] mx-auto px-6 h-20 flex items-center justify-between">
-        {/* LOGO SECTION: METAGEAR */}
         <div
           onClick={() => {
-            setSearchQuery(""); // Clear search when going home
+            setSearchQuery("");
             setPage("home");
           }}
           className="flex items-center gap-4 cursor-pointer group"
@@ -68,7 +89,6 @@ export default function Header({
           </div>
         </div>
 
-        {/* SEARCH LOADOUT: Tactical Input */}
         <div className="hidden md:flex flex-1 max-w-md mx-8 relative group">
           <div className="absolute left-4 top-1/2 -translate-y-1/2 text-red-600 z-10 group-focus-within:scale-110 transition-transform">
             <svg
@@ -92,13 +112,8 @@ export default function Header({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-1">
-            <span className="w-1 h-1 bg-red-600 animate-pulse"></span>
-            <span className="w-1 h-1 bg-red-600 animate-pulse delay-75"></span>
-          </div>
         </div>
 
-        {/* ACTIONS & AUTH */}
         <nav className="flex items-center gap-4">
           {!isAdmin && (
             <button
@@ -119,7 +134,7 @@ export default function Header({
                 />
               </svg>
               {cartCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[9px] font-black w-5 h-5 flex items-center justify-center rounded-full border border-black shadow-[0_0_10px_#ff0000]">
+                <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[9px] font-black w-5 h-5 flex items-center justify-center rounded-full border border-black">
                   {cartCount}
                 </span>
               )}
@@ -132,17 +147,31 @@ export default function Header({
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
                 className={`flex items-center gap-3 bg-neutral-900/50 border p-1.5 pr-4 rounded-sm transition-all ${isAdmin ? "border-red-600 shadow-[0_0_10px_rgba(220,38,38,0.2)]" : "border-neutral-800 hover:border-red-600"}`}
               >
+                {/* Updated Avatar Section */}
                 <div
-                  className={`w-8 h-8 flex items-center justify-center font-black text-[10px] ${isAdmin ? "bg-red-600 text-white" : "bg-white text-black"}`}
+                  className={`w-8 h-8 flex items-center justify-center font-black text-[10px] overflow-hidden ${isAdmin ? "bg-red-600 text-white" : "bg-white text-black"}`}
                 >
-                  {isAdmin ? "OP" : session.user.email[0].toUpperCase()}
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt="User"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : isAdmin ? (
+                    "OP"
+                  ) : (
+                    session.user.email[0].toUpperCase()
+                  )}
                 </div>
                 <div className="text-left hidden lg:block">
                   <p className="text-[6px] font-black text-red-600 uppercase tracking-tighter leading-none">
                     {isAdmin ? "ROOT_ACCESS" : "OPERATOR"}
                   </p>
                   <p className="text-[10px] font-black uppercase text-white truncate max-w-[80px]">
-                    {isAdmin ? "ADMIN" : session.user.email.split("@")[0]}
+                    {isAdmin
+                      ? "ADMIN"
+                      : session.user.user_metadata?.full_name?.split(" ")[0] ||
+                        session.user.email.split("@")[0]}
                   </p>
                 </div>
               </button>

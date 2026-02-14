@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"; // Added useEffect
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function ProductDetails({
@@ -15,7 +15,6 @@ export default function ProductDetails({
   const [userRating, setUserRating] = useState(5);
   const [reviewText, setReviewText] = useState("");
 
-  // Initialize state from LocalStorage or use defaults if empty
   const [reviews, setReviews] = useState(() => {
     if (typeof window !== "undefined" && product?.id) {
       const savedReviews = localStorage.getItem(`reviews_${product.id}`);
@@ -39,7 +38,6 @@ export default function ProductDetails({
     return [];
   });
 
-  // Effect to update LocalStorage whenever the reviews array changes
   useEffect(() => {
     if (product?.id) {
       localStorage.setItem(`reviews_${product.id}`, JSON.stringify(reviews));
@@ -63,14 +61,22 @@ export default function ProductDetails({
     setUserRating(5);
   };
 
+  // --- CRITICAL FIX: NULL GUARD FIRST ---
   if (!product) return null;
 
+  // --- SAFE TO DEFINE AFTER GUARD ---
+  const isOutOfStock = !product.stock || product.stock <= 0;
+
   const handleQuantity = (type) => {
-    if (type === "plus") setQuantity((p) => p + 1);
+    if (type === "plus") {
+      // Prevent selecting more than available stock
+      if (quantity < product.stock) setQuantity((p) => p + 1);
+    }
     if (type === "minus" && quantity > 1) setQuantity((p) => p - 1);
   };
 
   const handleAddToCart = () => {
+    if (isOutOfStock) return;
     if (!session) {
       addToCart();
       return;
@@ -124,9 +130,13 @@ export default function ProductDetails({
                     onClick={() => setIsZoomed(!isZoomed)}
                   />
                   <div className="absolute top-6 left-6 flex flex-col gap-2">
-                    <div className="w-12 h-1 bg-red-600 animate-pulse" />
-                    <span className="text-[8px] font-mono text-red-600">
-                      LIVE_FEED_04
+                    <div
+                      className={`w-12 h-1 ${isOutOfStock ? "bg-neutral-700" : "bg-red-600 animate-pulse"}`}
+                    />
+                    <span
+                      className={`text-[8px] font-mono ${isOutOfStock ? "text-neutral-600" : "text-red-600"}`}
+                    >
+                      {isOutOfStock ? "FEED_TERMINATED" : "LIVE_FEED_04"}
                     </span>
                   </div>
                   <div className="absolute bottom-6 right-6 bg-red-600 text-white px-4 py-2 skew-x-[-12deg] font-black text-[9px] uppercase tracking-widest shadow-[0_0_20px_#ff0000]">
@@ -162,7 +172,13 @@ export default function ProductDetails({
                         </p>
                         <p className="text-red-500/50 uppercase">
                           Integrity:{" "}
-                          <span className="text-green-400">100%_STABLE</span>
+                          <span
+                            className={
+                              isOutOfStock ? "text-red-600" : "text-green-400"
+                            }
+                          >
+                            {isOutOfStock ? "DEPLETED" : "100%_STABLE"}
+                          </span>
                         </p>
                       </div>
                     </div>
@@ -191,6 +207,20 @@ export default function ProductDetails({
             >
               {product.name}
             </h1>
+
+            {/* Added Stock Readout */}
+            <div className="flex items-center gap-2 mb-4">
+              <div
+                className={`w-2 h-2 ${isOutOfStock ? "bg-red-600" : "bg-green-500 animate-pulse"}`}
+              />
+              <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-widest">
+                Available_Inventory:{" "}
+                <span className={isOutOfStock ? "text-red-600" : "text-white"}>
+                  {product.stock ?? 0} Units
+                </span>
+              </span>
+            </div>
+
             <div className="flex items-center gap-4">
               <span className="text-[10px] font-black text-red-600 uppercase border border-red-600 px-2">
                 Market_Value
@@ -202,10 +232,13 @@ export default function ProductDetails({
           </motion.div>
 
           <div className="space-y-6">
-            <div className="flex items-center justify-between bg-neutral-900 p-1 border-2 border-neutral-800">
+            <div
+              className={`flex items-center justify-between bg-neutral-900 p-1 border-2 ${isOutOfStock ? "border-red-900/50 opacity-50" : "border-neutral-800"}`}
+            >
               <button
+                disabled={isOutOfStock}
                 onClick={() => handleQuantity("minus")}
-                className="w-14 h-14 flex items-center justify-center font-black text-xl text-neutral-500 hover:text-red-600 hover:bg-black transition-all"
+                className="w-14 h-14 flex items-center justify-center font-black text-xl text-neutral-500 hover:text-red-600 hover:bg-black transition-all disabled:cursor-not-allowed"
               >
                 —
               </button>
@@ -214,24 +247,36 @@ export default function ProductDetails({
                   Units_Selected
                 </span>
                 <span className="font-black text-3xl">
-                  {quantity.toString().padStart(2, "0")}
+                  {isOutOfStock ? "00" : quantity.toString().padStart(2, "0")}
                 </span>
               </div>
               <button
+                disabled={isOutOfStock}
                 onClick={() => handleQuantity("plus")}
-                className="w-14 h-14 flex items-center justify-center font-black text-xl text-neutral-500 hover:text-red-600 hover:bg-black transition-all"
+                className="w-14 h-14 flex items-center justify-center font-black text-xl text-neutral-500 hover:text-red-600 hover:bg-black transition-all disabled:cursor-not-allowed"
               >
                 +
               </button>
             </div>
 
             <button
+              disabled={isOutOfStock}
               onClick={handleAddToCart}
-              className="group relative w-full overflow-hidden"
+              className="group relative w-full overflow-hidden disabled:cursor-not-allowed"
             >
-              <div className="absolute inset-0 bg-red-600 -translate-x-full group-hover:translate-x-0 transition-transform duration-500" />
-              <div className="relative z-10 w-full bg-white text-black py-6 font-[1000] uppercase tracking-[0.3em] text-xs group-hover:text-white transition-colors">
-                Add_To_Loadout ({quantity})
+              <div
+                className={`absolute inset-0 bg-red-600 -translate-x-full ${!isOutOfStock && "group-hover:translate-x-0"} transition-transform duration-500`}
+              />
+              <div
+                className={`relative z-10 w-full py-6 font-[1000] uppercase tracking-[0.3em] text-xs transition-colors ${
+                  isOutOfStock
+                    ? "bg-neutral-800 text-neutral-600"
+                    : "bg-white text-black group-hover:text-white"
+                }`}
+              >
+                {isOutOfStock
+                  ? "STOCKS_DEPLETED"
+                  : `Add_To_Loadout (${quantity})`}
               </div>
             </button>
           </div>

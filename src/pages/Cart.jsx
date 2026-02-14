@@ -1,7 +1,10 @@
 import { motion, AnimatePresence } from "framer-motion";
 
-export default function Cart({ cartItems, setPage, setCart }) {
-  const groupedItems = cartItems.reduce((acc, item) => {
+// Accepts either 'cart' or 'cartItems' to prevent vanishing bugs
+export default function Cart({ cart, cartItems, setPage, setCart }) {
+  const activeItems = cart || cartItems || [];
+
+  const groupedItems = activeItems.reduce((acc, item) => {
     const existing = acc.find((i) => i.id === item.id);
     if (existing) {
       existing.quantity += 1;
@@ -11,25 +14,26 @@ export default function Cart({ cartItems, setPage, setCart }) {
     return acc;
   }, []);
 
-  const total = cartItems.reduce((acc, item) => acc + (item.price || 0), 0);
+  const total = activeItems.reduce((acc, item) => acc + (item.price || 0), 0);
 
-  // --- NEW LOGIC FOR QUANTITY CONTROL ---
   const addItem = (itemToAdd) => {
-    setCart([...cartItems, { ...itemToAdd }]);
+    setCart([...activeItems, { ...itemToAdd }]);
   };
 
   const removeItemOne = (id) => {
-    const index = cartItems.findIndex((item) => item.id === id);
+    const index = activeItems.findIndex((item) => item.id === id);
     if (index !== -1) {
-      const newCart = [...cartItems];
+      const newCart = [...activeItems];
       newCart.splice(index, 1);
       setCart(newCart);
     }
   };
 
   const removeItemCompletely = (id) => {
-    setCart(cartItems.filter((item) => item.id !== id));
+    setCart(activeItems.filter((item) => item.id !== id));
   };
+
+  // ... rest of your return remains the same, just use 'activeItems' or 'groupedItems'
 
   return (
     <div className="w-full h-screen text-white bg-black selection:bg-red-600 relative overflow-hidden flex flex-col">

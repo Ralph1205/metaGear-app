@@ -1,6 +1,12 @@
 import ProductCard from "./ProductCard";
 
-export default function ProductGrid({ products, addToCart, onViewDetails }) {
+// ADDED: addToWishlist to the destructuring here
+export default function ProductGrid({
+  products,
+  addToCart,
+  addToWishlist,
+  onViewDetails,
+}) {
   return (
     /* Changed to w-full and removed max-width constraints */
     <div className="relative w-full min-h-screen overflow-hidden bg-[#050505] py-20 px-4 md:px-10">
@@ -50,6 +56,7 @@ export default function ProductGrid({ products, addToCart, onViewDetails }) {
             product={product}
             index={index}
             addToCart={addToCart}
+            addToWishlist={addToWishlist} // <--- CRITICAL: Passed to the card
             onViewDetails={onViewDetails}
           />
         ))}

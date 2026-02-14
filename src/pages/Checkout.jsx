@@ -21,9 +21,9 @@ export default function Checkout({ cartItems, setPage, setCart }) {
     (acc, item) => acc + (item.price || 0),
     0,
   );
-  const shippingFee = subtotal > 50000 ? 0 : 250;
-  const tax = subtotal * 0.12;
-  const totalAmount = subtotal + shippingFee + tax;
+
+  const shippingFee = 0;
+  const totalAmount = subtotal + shippingFee; // Tax removed
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -40,10 +40,15 @@ export default function Checkout({ cartItems, setPage, setCart }) {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("AGENT_UNAUTHORIZED");
 
+      // FIXED: Removed shipping_fee from insert to prevent database column error
       const { data: orderData, error: orderError } = await supabase
         .from("orders")
         .insert([
-          { user_id: user.id, total_price: totalAmount, status: "pending" },
+          {
+            user_id: user.id,
+            total_price: totalAmount,
+            status: "pending",
+          },
         ])
         .select();
 
@@ -75,7 +80,6 @@ export default function Checkout({ cartItems, setPage, setCart }) {
 
   return (
     <div className="min-h-screen bg-[#050505] text-white px-6 py-12 relative font-sans overflow-hidden">
-      {/* TACTICAL BACKGROUND OVERLAY */}
       <div className="absolute inset-0 opacity-10 pointer-events-none">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(220,38,38,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(220,38,38,0.1)_1px,transparent_1px)] bg-[size:40px_40px]" />
         <motion.div
@@ -217,7 +221,6 @@ export default function Checkout({ cartItems, setPage, setCart }) {
             </button>
           </form>
 
-          {/* SIDEBAR ASSET MANIFEST */}
           <div className="relative group h-fit">
             <div className="absolute -inset-[1px] bg-red-600/20 opacity-50 group-hover:opacity-100 transition-opacity" />
             <div className="relative bg-black/40 p-8 border border-red-600/30 backdrop-blur-xl">
@@ -269,11 +272,9 @@ export default function Checkout({ cartItems, setPage, setCart }) {
                 </div>
                 <div className="flex justify-between text-neutral-500">
                   <span>LOGISTICS_FEE</span>
-                  <span>{shippingFee === 0 ? "FREE" : `₱${shippingFee}`}</span>
-                </div>
-                <div className="flex justify-between text-neutral-500">
-                  <span>GOVT_TAX_VAT</span>
-                  <span>₱{tax.toLocaleString()}</span>
+                  <span className="text-green-500 font-black">
+                    FREE_DEPLOYMENT
+                  </span>
                 </div>
                 <div className="flex justify-between text-3xl font-[1000] italic text-white mt-5 pt-5 border-t border-neutral-800">
                   <span className="text-red-600">TOTAL</span>
@@ -285,7 +286,6 @@ export default function Checkout({ cartItems, setPage, setCart }) {
         </div>
       </div>
 
-      {/* FINAL RECEIPT MODAL */}
       <AnimatePresence>
         {showReceipt && (
           <motion.div
@@ -299,15 +299,8 @@ export default function Checkout({ cartItems, setPage, setCart }) {
               className="bg-neutral-900 border border-red-600/50 p-[1px] w-full max-w-xl shadow-[0_0_50px_rgba(220,38,38,0.2)]"
             >
               <div className="border border-neutral-800 bg-[#050505] relative overflow-hidden">
-                {/* TACTICAL DECORATIONS */}
                 <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-red-600/50 to-transparent" />
-                <div className="absolute top-4 right-4 flex gap-1">
-                  <div className="w-1 h-1 bg-red-600 animate-pulse" />
-                  <div className="w-8 h-[1px] bg-red-600/30 self-center" />
-                </div>
-
                 <div className="p-10">
-                  {/* HEADER */}
                   <div className="mb-10 flex justify-between items-start">
                     <div>
                       <h3 className="text-white font-[1000] uppercase text-5xl tracking-tighter italic leading-none">
@@ -319,17 +312,8 @@ export default function Checkout({ cartItems, setPage, setCart }) {
                         MANIFEST_ID: {orderId?.toString().slice(0, 12)}...
                       </p>
                     </div>
-                    <div className="text-right font-mono">
-                      <p className="text-[10px] text-red-500/80">
-                        AUTHENTICATED_AGENT
-                      </p>
-                      <p className="text-xs font-bold text-white uppercase">
-                        {formData.fullName.split(" ")[0]}
-                      </p>
-                    </div>
                   </div>
 
-                  {/* INTEL GRID */}
                   <div className="grid grid-cols-2 gap-0 mb-10 border border-neutral-800/50">
                     <div className="p-6 border-r border-b border-neutral-800/50 space-y-1">
                       <p className="text-[9px] font-mono text-neutral-500 uppercase tracking-widest">
@@ -343,10 +327,10 @@ export default function Checkout({ cartItems, setPage, setCart }) {
                     </div>
                     <div className="p-6 border-b border-neutral-800/50 space-y-1">
                       <p className="text-[9px] font-mono text-neutral-500 uppercase tracking-widest">
-                        Region
+                        Logistics
                       </p>
-                      <p className="text-sm font-black text-white italic">
-                        {formData.region.replace("_", " ")}
+                      <p className="text-sm font-black text-green-500 italic uppercase">
+                        Free_Shipping
                       </p>
                     </div>
                     <div className="p-6 col-span-2 space-y-1 bg-neutral-900/20">
@@ -359,14 +343,10 @@ export default function Checkout({ cartItems, setPage, setCart }) {
                     </div>
                   </div>
 
-                  {/* PRICE AREA */}
                   <div className="flex justify-between items-center mb-10 px-2">
                     <div className="font-mono">
                       <p className="text-[10px] text-neutral-500 uppercase tracking-tighter">
                         Settlement_Total
-                      </p>
-                      <p className="text-[10px] text-red-600/50 uppercase italic">
-                        Vat_Included_12%
                       </p>
                     </div>
                     <div className="text-right">
@@ -379,7 +359,6 @@ export default function Checkout({ cartItems, setPage, setCart }) {
                     </div>
                   </div>
 
-                  {/* ACTION BUTTON */}
                   <button
                     onClick={() => {
                       setCart([]);
@@ -391,18 +370,10 @@ export default function Checkout({ cartItems, setPage, setCart }) {
                         "polygon(0 0, 100% 0, 100% 75%, 95% 100%, 0 100%)",
                     }}
                   >
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-white font-black uppercase italic text-sm tracking-[0.3em] group-hover:text-black transition-colors">
-                        Return to Base_Station
-                      </span>
-                    </div>
-                    {/* Button Glitch Effect Overlay */}
-                    <div className="absolute inset-0 bg-white/10 translate-x-full group-hover:translate-x-0 transition-transform duration-500 skew-x-12" />
+                    <span className="text-white font-black uppercase italic text-sm tracking-[0.3em] group-hover:text-black transition-colors">
+                      Return to Base_Station
+                    </span>
                   </button>
-
-                  <p className="text-center mt-6 text-[8px] font-mono text-neutral-700 uppercase tracking-widest">
-                    Secured_By_MetaGear_Systems_v4.0
-                  </p>
                 </div>
               </div>
             </motion.div>

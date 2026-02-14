@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 export default function ProductCard({
   product,
   addToCart,
+  addToWishlist,
   onViewDetails,
   index,
 }) {
@@ -10,6 +11,8 @@ export default function ProductCard({
   const imageSource = product.image_url?.includes("http")
     ? product.image_url
     : `https://images.pexels.com/photos/${techImages[product.id % techImages.length]}/pexels-photo.jpg?auto=compress&w=800`;
+
+  const isOutOfStock = !product.stock || product.stock <= 0;
 
   return (
     <motion.div
@@ -40,8 +43,10 @@ export default function ProductCard({
           <span className="bg-black/80 text-red-600 text-[8px] font-black px-2 py-0.5 border border-red-600/40 uppercase tracking-tighter">
             ID_{product.id?.toString().padStart(4, "0")}
           </span>
-          <span className="bg-black/80 text-white text-[8px] font-black px-2 py-0.5 border border-white/20 uppercase tracking-tighter">
-            SEC_STABLE
+          <span
+            className={`bg-black/80 text-[8px] font-black px-2 py-0.5 border uppercase tracking-tighter ${isOutOfStock ? "text-red-500 border-red-500/40" : "text-white border-white/20"}`}
+          >
+            {isOutOfStock ? "DEPLETED" : "SEC_STABLE"}
           </span>
         </div>
 
@@ -70,6 +75,14 @@ export default function ProductCard({
         {/* --- BOTTOM ACTION LAYER --- */}
         <div className="mt-auto pt-4 border-t border-neutral-800 flex items-end justify-between">
           <div className="flex flex-col">
+            <span className="text-[8px] text-neutral-500 font-black uppercase tracking-widest mb-1">
+              STK_LEVEL:{" "}
+              <span
+                className={isOutOfStock ? "text-red-600" : "text-green-500"}
+              >
+                {product.stock ?? 0}
+              </span>
+            </span>
             <span className="text-[8px] text-red-600 font-black uppercase tracking-widest mb-1">
               Credit_Value
             </span>
@@ -78,20 +91,40 @@ export default function ProductCard({
             </span>
           </div>
 
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              addToCart(product);
-            }}
-            className="relative px-4 py-2 bg-white text-black font-black uppercase text-[9px] tracking-widest hover:bg-red-600 hover:text-white transition-all overflow-hidden"
-          >
-            Deploy_To_Cart
-          </button>
+          <div className="flex flex-col gap-2 items-end">
+            {/* Target Tag Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation(); // Prevents navigating to details page
+                addToWishlist(product);
+              }}
+              className="text-white hover:text-red-600 text-[7px] font-black px-2 py-1 border border-white/10 hover:border-red-600 transition-all uppercase tracking-widest z-50 bg-neutral-900"
+            >
+              [ Tag_Target ]
+            </button>
+
+            <button
+              disabled={isOutOfStock}
+              onClick={(e) => {
+                e.stopPropagation();
+                addToCart(product);
+              }}
+              className={`relative px-4 py-2 font-black uppercase text-[9px] tracking-widest transition-all overflow-hidden ${
+                isOutOfStock
+                  ? "bg-neutral-800 text-neutral-600 cursor-not-allowed"
+                  : "bg-white text-black hover:bg-red-600 hover:text-white"
+              }`}
+            >
+              {isOutOfStock ? "OUT_OF_STOCK" : "Deploy_To_Cart"}
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Industrial Corner Detail */}
-      <div className="absolute bottom-1 right-1 w-4 h-4 bg-red-600 rotate-45 translate-x-2 translate-y-2 group-hover:scale-150 transition-transform" />
+      <div
+        className={`absolute bottom-1 right-1 w-4 h-4 rotate-45 translate-x-2 translate-y-2 group-hover:scale-150 transition-transform ${isOutOfStock ? "bg-neutral-800" : "bg-red-600"}`}
+      />
     </motion.div>
   );
 }

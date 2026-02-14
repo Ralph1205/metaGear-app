@@ -109,7 +109,31 @@ export default function App() {
     }
     const itemsToAdd = Array(quantity).fill(product);
     setCart((prevCart) => [...prevCart, ...itemsToAdd]);
-    setToast(`${quantity}X ${product.name} ADDED TO LOADOUT`);
+    setToast(`${quantity}X ${product.name.toUpperCase()} ADDED TO LOADOUT`);
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  // --- NEW WISHLIST LOGIC ---
+  const addToWishlist = async (product) => {
+    if (!session) {
+      setCurrentPage("login");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("wishlist")
+        .insert([{ user_id: session.user.id, product_id: product.id }]);
+
+      if (error) throw error;
+      setToast(`TARGET_SECURED: ${product.name.toUpperCase()} TAGGED`);
+    } catch (error) {
+      setToast(
+        error.code === "23505"
+          ? "ALERT: TARGET ALREADY TAGGED"
+          : "ERROR: UPLINK_FAILURE",
+      );
+    }
     setTimeout(() => setToast(null), 3000);
   };
 
@@ -121,9 +145,10 @@ export default function App() {
         return (
           <Home
             addToCart={addToCart}
+            addToWishlist={addToWishlist}
             onViewDetails={viewDetails}
             searchQuery={searchQuery}
-            setPage={setCurrentPage} // PASSED TO HERO
+            setPage={setCurrentPage}
           />
         );
       case "details":
@@ -159,6 +184,7 @@ export default function App() {
             session={session}
             activeTab={dashboardTab}
             setActiveTab={setDashboardTab}
+            addToCart={addToCart}
           />
         );
       case "admin":
@@ -167,18 +193,20 @@ export default function App() {
         ) : (
           <Home
             addToCart={addToCart}
+            addToWishlist={addToWishlist}
             onViewDetails={viewDetails}
             searchQuery={searchQuery}
-            setPage={setCurrentPage} // PASSED TO HERO
+            setPage={setCurrentPage}
           />
         );
       default:
         return (
           <Home
             addToCart={addToCart}
+            addToWishlist={addToWishlist}
             onViewDetails={viewDetails}
             searchQuery={searchQuery}
-            setPage={setCurrentPage} // PASSED TO HERO
+            setPage={setCurrentPage}
           />
         );
     }
@@ -189,7 +217,14 @@ export default function App() {
       <style>
         {`
           * { cursor: none !important; }
-          body { overflow-x: hidden; }
+          body { 
+            overflow-x: hidden; 
+            background: #020202; /* Match the tactical theme background */
+          }
+          /* Custom scrollbar to keep theme consistency */
+          ::-webkit-scrollbar { width: 4px; }
+          ::-webkit-scrollbar-track { background: #0a0a0a; }
+          ::-webkit-scrollbar-thumb { background: #dc2626; }
         `}
       </style>
 
@@ -237,17 +272,25 @@ export default function App() {
           </motion.div>
         </AnimatePresence>
 
+        {/* --- TACTICAL HUD NOTIFICATIONS (TOAST) --- */}
         <AnimatePresence>
           {toast && (
             <motion.div
               initial={{ y: 100, x: "-50%", opacity: 0 }}
               animate={{ y: 0, x: "-50%", opacity: 1 }}
               exit={{ y: 100, x: "-50%", opacity: 0 }}
-              className="fixed bottom-10 left-1/2 z-[200] bg-black text-white px-8 py-4 rounded-2xl border-2 border-red-600 shadow-[0_20px_50px_rgba(220,38,38,0.3)]"
+              className="fixed bottom-10 left-1/2 z-[200] bg-black text-white px-8 py-4 border-2 border-red-600 shadow-[0_0_30px_rgba(220,38,38,0.4)]"
+              style={{
+                clipPath:
+                  "polygon(5% 0, 100% 0, 100% 70%, 95% 100%, 0 100%, 0 30%)",
+              }}
             >
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] italic">
-                {toast}
-              </p>
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-4 bg-red-600 animate-pulse" />
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] italic">
+                  {toast}
+                </p>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
