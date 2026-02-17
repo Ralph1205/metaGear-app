@@ -1,6 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
 
-// Accepts either 'cart' or 'cartItems' to prevent vanishing bugs
 export default function Cart({ cart, cartItems, setPage, setCart }) {
   const activeItems = cart || cartItems || [];
 
@@ -33,18 +32,13 @@ export default function Cart({ cart, cartItems, setPage, setCart }) {
     setCart(activeItems.filter((item) => item.id !== id));
   };
 
-  // ... rest of your return remains the same, just use 'activeItems' or 'groupedItems'
-
   return (
     <div className="w-full h-screen text-white bg-black selection:bg-red-600 relative overflow-hidden flex flex-col">
-      {/* --- BACKGROUND FX --- */}
       <div className="fixed inset-0 pointer-events-none opacity-10 bg-[url('https://www.transparenttextures.com/patterns/circuit-board.png')]" />
-      <div className="fixed inset-0 pointer-events-none opacity-20 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%)] bg-[length:100%_4px]" />
-      <div className="fixed inset-0 pointer-events-none bg-gradient-to-t from-red-900/10 via-transparent to-transparent" />
+      <div className="fixed inset-0 pointer-events-none opacity-20 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%)] bg-size-[100%_4px]]" />
+      <div className="fixed inset-0 pointer-events-none bg-linear-to-t from-red-900/10 via-transparent to-transparent" />
 
-      {/* --- INNER CONTENT --- */}
       <div className="max-w-4xl mx-auto w-full h-full flex flex-col p-6 md:p-12 relative z-10 overflow-hidden">
-        {/* --- FIXED HEADER --- */}
         <header className="flex justify-between items-end mb-8 border-b border-red-600/30 pb-8 shrink-0">
           <motion.div
             initial={{ opacity: 0, x: -20 }}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import supabase from "../supabase";
-import "cally"; // Ensure 'npm i cally' is installed or use CDN script in index.html
+import "cally";
 import {
   XAxis,
   YAxis,
@@ -24,11 +24,9 @@ export default function AdminDashboard({ setPage }) {
   const [expandedUser, setExpandedUser] = useState(null);
   const [activeCategory, setActiveCategory] = useState("ALL_ASSETS");
 
-  // Pagination State for Inventory
   const [invPage, setInvPage] = useState(1);
   const invPerPage = 6;
 
-  // Pagination State for Orders per User
   const [orderPage, setOrderPage] = useState(1);
   const ordersPerPage = 5;
 
@@ -103,7 +101,6 @@ export default function AdminDashboard({ setPage }) {
           (p) => p.category.toUpperCase() === activeCategory.toUpperCase(),
         );
 
-  // Inventory Pagination Logic
   const totalInvPages = Math.ceil(filteredProducts.length / invPerPage);
   const paginatedProducts = filteredProducts.slice(
     (invPage - 1) * invPerPage,
@@ -169,20 +166,6 @@ export default function AdminDashboard({ setPage }) {
         category: "Laptop",
         stock: "0",
       });
-      fetchData();
-    } catch (err) {
-      alert(`System Error: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm("CONFIRM_TERMINATION: DATA_LOSS_IS_PERMANENT")) return;
-    setLoading(true);
-    try {
-      const { error } = await supabase.from("products").delete().eq("id", id);
-      if (error) throw error;
       fetchData();
     } catch (err) {
       alert(`System Error: ${err.message}`);
@@ -353,32 +336,23 @@ export default function AdminDashboard({ setPage }) {
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          setEditingId(item.id);
-                          setFormData({
-                            ...item,
-                            price: item.price.toString(),
-                            stock: item.stock.toString(),
-                          });
-                        }}
-                        className="text-[9px] font-black text-white/40 hover:text-white uppercase border-2 border-transparent hover:border-red-600 px-3 py-1 transition-all"
-                      >
-                        Edit_Asset
-                      </button>
-                      <button
-                        onClick={() => handleDelete(item.id)}
-                        className="text-[9px] font-black text-red-900 hover:text-red-500 uppercase border-2 border-transparent hover:border-red-900 px-3 py-1 transition-all"
-                      >
-                        Terminate_Asset
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => {
+                        setEditingId(item.id);
+                        setFormData({
+                          ...item,
+                          price: item.price.toString(),
+                          stock: item.stock.toString(),
+                        });
+                      }}
+                      className="text-[9px] font-black text-white/40 hover:text-white uppercase border-2 border-transparent hover:border-red-600 px-3 py-1 transition-all"
+                    >
+                      Edit_Asset
+                    </button>
                   </div>
                 ))}
               </div>
 
-              {/* INVENTORY PAGINATION */}
               {totalInvPages > 1 && (
                 <div className="flex justify-center mt-8">
                   <div className="join border-2 border-red-600 p-1 bg-black">
@@ -387,8 +361,7 @@ export default function AdminDashboard({ setPage }) {
                       disabled={invPage === 1}
                       onClick={() => setInvPage((p) => p - 1)}
                     >
-                      {" "}
-                      «{" "}
+                      «
                     </button>
                     <button className="join-item btn btn-xs bg-red-600 border-none text-white no-animation">
                       PAGE {invPage} / {totalInvPages}
@@ -398,8 +371,7 @@ export default function AdminDashboard({ setPage }) {
                       disabled={invPage === totalInvPages}
                       onClick={() => setInvPage((p) => p + 1)}
                     >
-                      {" "}
-                      »{" "}
+                      »
                     </button>
                   </div>
                 </div>
@@ -421,7 +393,6 @@ export default function AdminDashboard({ setPage }) {
                     </span>
                   </div>
 
-                  {/* UPGRADED CALLY CALENDAR */}
                   <div className="relative">
                     <button
                       popovertarget="cally-popover"
@@ -469,7 +440,7 @@ export default function AdminDashboard({ setPage }) {
                   </div>
                 </div>
 
-                <div className="bg-neutral-900/30 border-2 border-neutral-900 p-6 h-[400px]">
+                <div className="bg-neutral-900/30 border-2 border-neutral-900 p-6 h-100">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData}>
                       <XAxis dataKey="date" stroke="#444" fontSize={10} />
@@ -517,7 +488,7 @@ export default function AdminDashboard({ setPage }) {
                             ₱{val.toLocaleString()}
                           </span>
                         </div>
-                        <div className="w-full bg-neutral-800 h-[3px]">
+                        <div className="w-full bg-neutral-800 h-0.75">
                           <div
                             className="bg-red-600 h-full shadow-[0_0_8px_rgba(220,38,38,0.5)]"
                             style={{ width: `${percent}%` }}
@@ -530,10 +501,9 @@ export default function AdminDashboard({ setPage }) {
               </div>
             </div>
 
-            {/* TRANSMISSION LOGS */}
             <div className="border-t-4 border-red-600 pt-8">
               <h3 className="text-xs font-black uppercase tracking-[0.2em] text-red-600 mb-6 italic flex items-center gap-3">
-                <span className="w-8 h-[2px] bg-red-600"></span>
+                <span className="w-8 h-0.5 bg-red-600"></span>
                 Transmission_Logs
               </h3>
               <div className="grid gap-4">
@@ -582,7 +552,7 @@ export default function AdminDashboard({ setPage }) {
                         </button>
 
                         {expandedUser === email && (
-                          <div className="flex flex-col lg:flex-row min-h-[350px] animate-in fade-in zoom-in-95 duration-300">
+                          <div className="flex flex-col lg:flex-row min-h-87.5 animate-in fade-in zoom-in-95 duration-300">
                             <div className="lg:w-1/2 p-8 border-r-2 border-neutral-800 bg-black/60 flex flex-col justify-center relative">
                               <div className="absolute top-4 left-4 text-[7px] text-red-900 font-mono tracking-widest">
                                 ENCRYPTED_DOSSIER
@@ -626,38 +596,59 @@ export default function AdminDashboard({ setPage }) {
                                   PAGE_{orderPage}/{totalUserPages}
                                 </span>
                               </h4>
-                              <div className="flex-grow space-y-5">
-                                {currentOrders.map((order) => (
-                                  <div
-                                    key={order.id}
-                                    className="border-b-2 border-neutral-900 pb-5 last:border-0 group"
-                                  >
-                                    <div className="flex justify-between items-start mb-3">
-                                      <span className="text-[9px] font-mono text-neutral-600 bg-neutral-800/50 px-1">
-                                        TRX_ID:{" "}
-                                        {String(order.id)
-                                          .slice(0, 8)
-                                          .toUpperCase()}
-                                      </span>
-                                      <span className="text-xs font-black text-white group-hover:text-red-500">
-                                        ₱{order.total_price?.toLocaleString()}
-                                      </span>
-                                    </div>
-                                    <div className="space-y-1.5 pl-2 border-l-2 border-red-600/20">
-                                      {order.order_items?.map((item, idx) => (
-                                        <div
-                                          key={idx}
-                                          className="text-[10px] text-neutral-400 font-bold uppercase flex justify-between"
-                                        >
-                                          <span>{item.products?.name}</span>
-                                          <span className="text-red-600 font-mono">
-                                            [{item.quantity}x]
+                              <div className="grow flex flex-col space-y-5">
+                                {currentOrders.map((order) => {
+                                  const orderDate = order.created_at
+                                    ? new Date(order.created_at)
+                                    : new Date();
+
+                                  return (
+                                    <div
+                                      key={order.id}
+                                      className="border-b-2 border-neutral-900 pb-5 last:border-0 group"
+                                    >
+                                      <div className="flex justify-between items-start mb-3">
+                                        <div className="flex flex-col gap-1">
+                                          <span className="text-[9px] font-mono text-neutral-600 bg-neutral-800/50 px-1 w-fit">
+                                            TRX_ID:{" "}
+                                            {String(order.id)
+                                              .slice(0, 8)
+                                              .toUpperCase()}
+                                          </span>
+                                          <span className="text-[8px] font-black text-red-600/70 uppercase tracking-tighter">
+                                            T_STAMP:{" "}
+                                            {orderDate.toLocaleDateString(
+                                              "en-US",
+                                            )}{" "}
+                                            //{" "}
+                                            {orderDate.toLocaleTimeString([], {
+                                              hour: "2-digit",
+                                              minute: "2-digit",
+                                              hour12: false,
+                                            })}
+                                            _HRS
                                           </span>
                                         </div>
-                                      ))}
+                                        <span className="text-xs font-black text-white group-hover:text-red-500">
+                                          ₱{order.total_price?.toLocaleString()}
+                                        </span>
+                                      </div>
+                                      <div className="space-y-1.5 pl-2 border-l-2 border-red-600/20">
+                                        {order.order_items?.map((item, idx) => (
+                                          <div
+                                            key={idx}
+                                            className="text-[10px] text-neutral-400 font-bold uppercase flex justify-between"
+                                          >
+                                            <span>{item.products?.name}</span>
+                                            <span className="text-red-600 font-mono">
+                                              [{item.quantity}x]
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
                                     </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
 
                               {totalUserPages > 1 && (

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import supabase from "../supabase";
 import { motion, AnimatePresence } from "framer-motion";
 
-// ADDED: addToCart to the props destructuring
 export default function AgentDashboard({
   session,
   activeTab,
@@ -16,7 +15,6 @@ export default function AgentDashboard({
   const [selectedOrder, setSelectedOrder] = useState(null);
   const fileInputRef = useRef(null);
 
-  // Profile States
   const [isEditing, setIsEditing] = useState(false);
   const [newName, setNewName] = useState(
     session?.user?.user_metadata?.full_name || "",
@@ -86,25 +84,39 @@ export default function AgentDashboard({
     }
   }, [session]);
 
+  const handleDeleteOrder = async (orderId) => {
+    const confirmDelete = window.confirm("PERMANENTLY_ERASE_ORDER_MANIFEST?");
+    if (!confirmDelete) return;
+
+    const { error } = await supabase.from("orders").delete().eq("id", orderId);
+
+    if (!error) {
+      setOrders(orders.filter((order) => order.id !== orderId));
+    } else {
+      alert("ERASE_FAILURE: " + error.message);
+    }
+  };
+
   const handleRemoveFromWishlist = async (id) => {
     const { error } = await supabase.from("wishlist").delete().eq("id", id);
     if (!error) setWishlist(wishlist.filter((item) => item.id !== id));
   };
 
-  // NEW FUNCTION: Handles the "Move to Cart" logic
   const handleMoveToCart = async (item) => {
-    // 1. Add to the local cart state via the prop
+    if (!item.products || item.products.stock <= 0) {
+      alert("ACCESS_DENIED: TARGET_OUT_OF_STOCK. DEPLOYMENT_ABORTED.");
+      return;
+    }
+
     if (addToCart) {
       addToCart(item.products);
     }
 
-    // 2. Remove from Supabase Database
     const { error } = await supabase
       .from("wishlist")
       .delete()
       .eq("id", item.id);
 
-    // 3. Remove from local UI state
     if (!error) {
       setWishlist(wishlist.filter((w) => w.id !== item.id));
     }
@@ -151,7 +163,6 @@ export default function AgentDashboard({
 
   return (
     <div className="min-h-screen bg-[#050505] text-white flex flex-col md:flex-row pt-20 font-sans overflow-hidden">
-      {/* 01. LEFT SIDEBAR */}
       <aside className="w-full md:w-60 border-r border-neutral-900 bg-black/50 p-6 flex flex-col gap-8 shrink-0">
         <div className="space-y-1">
           <p className="text-red-600 font-mono text-[8px] uppercase tracking-[0.4em] animate-pulse">
@@ -203,19 +214,35 @@ export default function AgentDashboard({
                 {orders.map((order) => (
                   <div
                     key={order.id}
-                    onClick={() => setSelectedOrder(order)}
                     className="bg-neutral-900/20 border border-neutral-800 p-6 hover:border-red-600/50 transition-all relative group cursor-pointer"
                   >
-                    <div className="flex flex-col md:flex-row justify-between gap-4 mb-4 border-b border-neutral-800/50 pb-4">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteOrder(order.id);
+                      }}
+                      className="absolute top-4 right-4 text-[9px] font-bold text-neutral-700 hover:text-red-600 transition-colors uppercase font-mono"
+                    >
+                      [ DISCONNECT_LOG ]
+                    </button>
+
+                    <div
+                      onClick={() => setSelectedOrder(order)}
+                      className="flex flex-col md:flex-row justify-between gap-4 mb-4 border-b border-neutral-800/50 pb-4"
+                    >
                       <div className="space-y-1">
                         <p className="text-[10px] font-mono text-red-600 uppercase tracking-widest">
                           Manifest_ID: {order.id.toString().slice(0, 8)}
                         </p>
-                        <p className="text-xs font-mono text-neutral-400">
-                          DATE:{" "}
-                          {new Date(order.created_at).toLocaleDateString()} |
-                          TIME:{" "}
-                          {new Date(order.created_at).toLocaleTimeString()}
+                        <p className="text-[9px] font-mono text-red-500 font-bold">
+                          T_STAMP:{" "}
+                          {new Date(order.created_at).toLocaleDateString()} //{" "}
+                          {new Date(order.created_at).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            hour12: false,
+                          })}
+                          _HRS
                         </p>
                       </div>
                       <div className="text-right">
@@ -227,17 +254,29 @@ export default function AgentDashboard({
                         </p>
                       </div>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <div className="flex gap-2">
-                        {order.order_items?.map((item, idx) => (
-                          <img
-                            key={idx}
-                            src={item.products?.image_url}
-                            className="w-10 h-10 object-cover border border-neutral-800"
-                            alt="asset"
-                          />
-                        ))}
-                      </div>
+                    <div className="flex flex-col gap-3">
+                      {order.order_items?.map((item, idx) => (
+                        <div
+                          key={idx}
+                          className="flex justify-between items-center border-l border-red-600 pl-4 py-1"
+                        >
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={item.products?.image_url}
+                              className="w-10 h-10 object-cover border border-neutral-800"
+                              alt="asset"
+                            />
+                            <p className="text-[10px] font-black uppercase tracking-tight text-neutral-300">
+                              {item.products?.name}
+                            </p>
+                          </div>
+                          <p className="text-[10px] font-mono text-red-600 font-bold">
+                            [{item.quantity}X]
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 text-right">
                       <span className="text-[9px] font-bold text-red-600 uppercase tracking-widest">
                         [ VIEW_DETAILS ]
                       </span>
@@ -258,41 +297,55 @@ export default function AgentDashboard({
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {wishlist.length > 0 ? (
-                  wishlist.map((item) => (
-                    <div
-                      key={item.id}
-                      className="bg-neutral-900/20 border border-neutral-800 p-4 flex gap-4 items-center group"
-                    >
-                      <img
-                        src={item.products?.image_url}
-                        alt=""
-                        className="w-16 h-16 object-cover border border-neutral-800"
-                      />
-                      <div className="flex-1">
-                        <h4 className="text-xs font-black uppercase tracking-tighter">
-                          {item.products?.name}
-                        </h4>
-                        <p className="text-red-600 font-mono text-[10px]">
-                          ₱{item.products?.price?.toLocaleString()}
-                        </p>
+                  wishlist.map((item) => {
+                    const isOutOfStock =
+                      !item.products || item.products.stock <= 0;
+                    return (
+                      <div
+                        key={item.id}
+                        className="bg-neutral-900/20 border border-neutral-800 p-4 flex gap-4 items-center group"
+                      >
+                        <img
+                          src={item.products?.image_url}
+                          alt=""
+                          className={`w-16 h-16 object-cover border border-neutral-800 ${isOutOfStock ? "grayscale" : ""}`}
+                        />
+                        <div className="flex-1">
+                          <h4
+                            className={`text-xs font-black uppercase tracking-tighter ${isOutOfStock ? "text-neutral-600" : ""}`}
+                          >
+                            {item.products?.name}
+                          </h4>
+                          <p className="text-red-600 font-mono text-[10px]">
+                            {isOutOfStock
+                              ? "OUT_OF_STOCK"
+                              : `₱${item.products?.price?.toLocaleString()}`}
+                          </p>
+                        </div>
+                        <div className="flex flex-col gap-2 text-right">
+                          <button
+                            onClick={() => handleMoveToCart(item)}
+                            disabled={isOutOfStock}
+                            className={`text-[8px] font-mono px-2 py-1 uppercase font-bold transition-colors ${
+                              isOutOfStock
+                                ? "bg-neutral-800 text-neutral-600 cursor-not-allowed border border-neutral-700"
+                                : "bg-white text-black hover:bg-red-600 hover:text-white"
+                            }`}
+                          >
+                            {isOutOfStock
+                              ? "[ UNAVAILABLE ]"
+                              : "[ DEPLOY_TO_CART ]"}
+                          </button>
+                          <button
+                            onClick={() => handleRemoveFromWishlist(item.id)}
+                            className="text-[8px] font-mono text-neutral-600 hover:text-red-600 border border-neutral-800 px-2 py-1 uppercase"
+                          >
+                            [ ELIMINATE ]
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex flex-col gap-2">
-                        {/* NEW: Deploy to Cart Button */}
-                        <button
-                          onClick={() => handleMoveToCart(item)}
-                          className="text-[8px] font-mono bg-white text-black hover:bg-red-600 hover:text-white px-2 py-1 uppercase font-bold transition-colors"
-                        >
-                          [ DEPLOY_TO_CART ]
-                        </button>
-                        <button
-                          onClick={() => handleRemoveFromWishlist(item.id)}
-                          className="text-[8px] font-mono text-neutral-600 hover:text-red-600 border border-neutral-800 px-2 py-1 uppercase"
-                        >
-                          [ ELIMINATE ]
-                        </button>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <p className="text-neutral-600 font-mono text-xs italic">
                     NO_TARGETS_ACQUIRED
@@ -307,7 +360,6 @@ export default function AgentDashboard({
               animate={{ opacity: 1 }}
               className="max-w-3xl mx-auto"
             >
-              {/* Profile section remains unchanged */}
               <h3 className="text-3xl font-[1000] italic uppercase tracking-tighter border-b border-red-600 pb-2 mb-10">
                 Personnel_File
               </h3>
@@ -440,14 +492,13 @@ export default function AgentDashboard({
         </AnimatePresence>
       </main>
 
-      {/* RECEIPT MODAL */}
       <AnimatePresence>
         {selectedOrder && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm"
+            className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm"
             onClick={() => setSelectedOrder(null)}
           >
             <motion.div

@@ -143,10 +143,10 @@ export default function Home({
     if (selectedCategory !== "All") {
       const dbCategory = p.category?.toLowerCase().trim() || "";
       const activeCategory = selectedCategory.toLowerCase().trim();
-      matchesCategory =
-        dbCategory === activeCategory ||
-        dbCategory === activeCategory.replace(/s$/, "") ||
-        activeCategory === dbCategory.replace(/s$/, "");
+
+      // CRITICAL FIX: Improved matching for "Graphics Cards" vs "Graphic Card"
+      const normalize = (str) => str.replace(/s\b/g, "").replace(/\s/g, "");
+      matchesCategory = normalize(dbCategory) === normalize(activeCategory);
     }
 
     return matchesSearch && matchesCategory && matchesPrice;
